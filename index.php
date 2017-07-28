@@ -50,9 +50,46 @@ if (empty($_FILES)) {
 </html>
 <?php
 function gdb_parse($gdbfile) {
-    return file_get_contents($gdbfile);
+    $threads = [];
+    $current_thread = null;
+    
+    $fp = fopen($gdbfile, 'r');
+
+    while (!feof($fp)) {
+        $line = trim(fgets($fp));
+        if ($line == "") continue;
+
+        // start of a new thread block?
+        if (preg_match('|^Thread (\d+) \(Thread (\w+) \(LWP (\d+)\)\)|', $line, $m)) {
+            // store previous thread block parse results if any
+            if (isset($current_thread)) {
+                $threads[$current_thread['thread_id']] = $current_thread;
+            }
+
+            // create new thread blog parse result
+            $current_thread = [
+                'thread_id'   => $m[1],
+                'thread_ptr'  => $m[2],
+                'LWP'         => $m[3],
+                'raw_content' => '',
+            ];
+        } else if (isset($current_thread)) {
+            $current_thread['raw_content'] .= "$line\n";
+        }
+    }
+
+    fclose($fp);
+
+    // store final thread block parse results if any
+    if (isset($current_thread)) {
+        $threads[$current_thread['thread_id']] = $current_thread;
+    }
+
+    return count($threads) > 0 ? $threads : false;
 }
 
 function show_result($result) {
-    echo "<pre>$result</pre>";
+    echo "<pre>\n";
+    print_r($result);
+    echo "</pre>\n";
 }

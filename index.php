@@ -1,6 +1,7 @@
 <html>
  <head>
   <title>GDB backtrace parser</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
  </head>
  <body>
 <?php
@@ -38,6 +39,13 @@ if (empty($_FILES)) {
     }
 }
 ?>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/1.12.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+  <script>
+  $(function () {
+  });
+  </script>
+
  </body>
 </html>
 <?php

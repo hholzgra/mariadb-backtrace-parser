@@ -52,7 +52,7 @@ if (empty($_FILES)) {
     GDB backtrace: <input name="gdb" type="file" />
     <br/>
     <input type="submit" value="Send File" />
-</form>    
+</form>
 <?php
 } else {
     // take uploaded file, or bundled "gdb.log" example if no file was selected
@@ -82,7 +82,7 @@ if (empty($_FILES)) {
 function gdb_parse($gdbfile) {
     $threads = [];
     $current_thread = null;
-    
+
     $fp = fopen($gdbfile, 'r');
 
     while (!feof($fp)) {
@@ -106,6 +106,8 @@ function gdb_parse($gdbfile) {
                 'LWP'         => $m[3],
                 'raw_content' => '',
                 'functions'   => [],
+                'group'       => '*unknown*',
+                'type'        => '*unknown*',
             ];
         } else if (isset($current_thread)) {
             $current_thread['raw_content'] .= "$line\n";
@@ -153,6 +155,8 @@ function gdb_parse($gdbfile) {
                         $frame['source'] = $where;
                     }
 
+                    handle_function_context($frame, $current_thread);
+
                     $current_thread['functions'][$frame['function']] = $frame;
                 }
             }
@@ -179,6 +183,8 @@ function show_result($result) {
         echo "   <li>\n";
         echo "    Thread $thread_id\n";
         echo "    <ul>\n";
+        echo "     <li>Group: $thread[group]</li>\n";
+        echo "     <li>Type: $thread[type]</li>\n";
         echo "     <li>thread_ptr: $thread[thread_ptr]</li>\n";
         echo "     <li>LWP: $thread[LWP]</li>\n";
         echo "     <li>Functions:\n";
@@ -217,7 +223,7 @@ function parse_params($params) {
     $results = [];
 
     // split parameter list by ','
-    // but ignore commas inside of quoted strings or function prototypes inside <> 
+    // but ignore commas inside of quoted strings or function prototypes inside <>
     for($i = 0; $i < strlen($params); $i++) {
         $c = $params[$i];
 
@@ -280,3 +286,102 @@ function parse_params($params) {
 
     return $real_results;
 }
+
+function handle_function_context(&$function, &$thread) {
+    switch ($function['function']) {
+    case 'mysqld_main':
+        $thread['group'] = 'Server';
+        $thread['type']  = 'main';
+        break;
+    case 'signal_hand':
+        $thread['group'] = 'Server';
+        $thread['type']  = 'signal handler';
+        break;
+    case 'timer_handler':
+        $thread['group'] = 'Server';
+        $thread['type']  = 'timer handler';
+        break;
+
+    case 'binlog_background_thread':
+        $thread['group'] = 'Replication';
+        $thread['type']  = 'binlog background';
+        break;
+    case 'handle_slave_background':
+        $thread['group'] = 'Replication';
+        $thread['type']  = 'slave background';
+        break;
+
+    case 'handle_one_connection':
+        $thread['group'] = 'Connections';
+        $thread['type']  = 'client';
+        break;
+
+    case 'ma_checkpoint_background':
+        $thread['group'] = 'Aria';
+        $thread['type']  = 'checkpoint';
+        break;
+
+    case 'btr_defragment_thread':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'defragmentation';
+        break;
+    case 'buf_dump_thread':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'buffer dump';
+        break;
+    case 'buf_flush_page_cleaner_coordinator':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'page cleaner coordinator';
+        break;
+    case 'buf_flush_page_cleaner_worker':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'page cleaner worker';
+        break;
+    case 'buf_resize_thread':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'buffer pool resize';
+        break;
+    case 'dict_stats_thread':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'dict stats';
+        break;
+    case 'fts_optimize_thread':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'fulltext optimize';
+        break;
+    case 'io_handler_thread':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'file IO';
+        break;
+    case 'lock_wait_timeout_thread':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'lock wait timeout';
+        break;
+    case 'srv_error_monitor_thread':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'error monitor';
+        break;
+    case 'srv_master_thread':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'master';
+        break;
+    case 'srv_monitor_thread':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'monitor';
+        break;
+    case 'srv_purge_coordinator_thread':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'purge coordinator';
+        break;
+    case 'thd_destructor_proxy':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'THD destructor proxy';
+        break;
+    case 'srv_worker_thread':
+        $thread['group'] = 'InnoDB';
+        $thread['type']  = 'worker';
+        break;
+    }
+}
+
+

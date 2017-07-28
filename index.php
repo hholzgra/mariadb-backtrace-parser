@@ -28,16 +28,23 @@ if (empty($_FILES)) {
     // take uploaded file, or bundled "gdb.log" example if no file was selected
     $gdbfile = $_FILES['gdb']['tmp_name'] ?: "./gdb.log";
 
-    $fp = fopen($gdbfile, 'r');
-
-    if (!$fp) {
+    if (!is_readable($gdbfile)) {
         echo "can't open file '$gdbfile'";
     } else {
-        echo "<pre>\n";
-        fpassthru($fp);
-        echo "</pre>\n";
+        $result = gdb_parse($gdbfile);
+        if ($result !== false) {
+            show_result($result);
+        }
     }
 }
 ?>
  </body>
 </html>
+<?php
+function gdb_parse($gdbfile) {
+    return file_get_contents($gdbfile);
+}
+
+function show_result($result) {
+    echo "<pre>$result</pre>";
+}

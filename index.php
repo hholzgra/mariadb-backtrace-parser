@@ -207,6 +207,9 @@ function show_result($result) {
         }
         echo "      </ul>\n";
         echo "     </li>\n";
+        if (isset($thread['query'])) {
+            echo "      <li><div class='raw'>".nl2br(htmlentities($thread['query']))."</div></li>\n";
+        }
         echo "    </ul>\n";
         echo "   </li>\n";
     }
@@ -289,6 +292,14 @@ function parse_params($params) {
 
 function handle_function_context(&$function, &$thread) {
     switch ($function['function']) {
+    case 'dispatch_command':
+        if (isset($function['params']['packet'])) {
+            $query = clean_string($function['params']['packet']);
+            $query = str_replace("\\n","\n", $query);
+            $thread["query"] = $query;
+        }
+        break;
+
     case 'mysqld_main':
         $thread['group'] = 'Server';
         $thread['type']  = 'main';
@@ -385,3 +396,14 @@ function handle_function_context(&$function, &$thread) {
 }
 
 
+function clean_string($string) {
+    // extract raw string from gdb string parameter format
+
+    $i1 = strpos($string, '"');
+    $i2 = strrpos($string, '"');
+    $string2 = substr($string, $i1+1, $i2 - $i1 -1);
+    if (substr($string, $i2+1, 3) == "...") {
+        $string2 .= " [...]";
+    }
+    return $string2;
+}

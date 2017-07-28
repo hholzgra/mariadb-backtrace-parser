@@ -2,6 +2,11 @@
  <head>
   <title>GDB backtrace parser</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
+  <style>
+pre {
+     background-color: lightblue;
+}
+  </style>
  </head>
  <body>
 <?php
@@ -89,7 +94,16 @@ function gdb_parse($gdbfile) {
 }
 
 function show_result($result) {
-    echo "<pre>\n";
-    print_r($result);
-    echo "</pre>\n";
+    echo "  <h2>Threads by ID</h2>\n";
+    echo "  <ul id='by_id'>\n";
+    foreach($result as $thread_id => $thread) {
+        echo "   <li>Thread $thread_id\n";
+        echo "    <ul>\n";
+        echo "     <li>thread_ptr: $thread[thread_ptr]</li>\n";
+        echo "     <li>LWP: $thread[LWP]</li>\n";
+        echo "     <li><pre>$thread[raw_content]</pre></li>\n";
+        echo "    </ul>\n";
+        echo "   </li>\n";
+    }
+    echo "  </ul>\n";
 }

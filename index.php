@@ -65,7 +65,7 @@ function gdb_parse($gdbfile) {
         if ($line == "") continue;
 
         // seeing a gdb prompt? -> we're done
-        if ($current_thread && ('(gdb)' == substr($line, 0 , 5)) break;
+        if ($current_thread && ('(gdb)' == substr($line, 0 , 5))) break;
 
         // start of a new thread block?
         if (preg_match('|^Thread (\d+) \(Thread (\w+) \(LWP (\d+)\)\)|', $line, $m)) {

@@ -126,7 +126,7 @@ function gdb_parse($gdbfile) {
 function show_result($result) {
     echo "  <h2>Threads by ID</h2>\n";
     echo "  <div id='by_id'>\n";
-    echo "   <ul>\n";
+    echo "   <ul><li>Threads by ID<ul>\n";
     foreach($result as $thread_id => $thread) {
         echo "   <li>\n";
         echo "    Thread $thread_id\n";
@@ -137,6 +137,6 @@ function show_result($result) {
         echo "    </ul>\n";
         echo "   </li>\n";
     }
-    echo "   </ul>\n";
+    echo "   </ul></li></ul>\n";
     echo "  </div>\n";
 }

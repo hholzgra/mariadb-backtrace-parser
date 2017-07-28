@@ -3,8 +3,32 @@
   <title>GDB backtrace parser</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
   <style>
-pre {
+.raw {
      background-color: lightblue;
+}
+
+/*
+the following is needed to allow for multi line content jstree nodes
+
+see also:
+ https://stackoverflow.com/questions/24746781/how-do-i-get-a-jstree-node-to-display-long-possibly-multiline-content
+*/
+
+.jstree-default a {
+     white-space:normal !important;
+     height: auto;
+}
+.jstree-anchor {
+     height: auto !important;
+}
+     .jstree-default li > ins {
+     vertical-align:top;
+}
+.jstree-leaf {
+     height: auto;
+}
+.jstree-leaf a{
+     height: auto !important;
 }
   </style>
  </head>
@@ -48,6 +72,7 @@ if (empty($_FILES)) {
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
   <script>
   $(function () {
+    $('#by_id').jstree();
   });
   </script>
 
@@ -93,20 +118,25 @@ function gdb_parse($gdbfile) {
         $threads[$current_thread['thread_id']] = $current_thread;
     }
 
+    ksort($threads);
+
     return count($threads) > 0 ? $threads : false;
 }
 
 function show_result($result) {
     echo "  <h2>Threads by ID</h2>\n";
-    echo "  <ul id='by_id'>\n";
+    echo "  <div id='by_id'>\n";
+    echo "   <ul>\n";
     foreach($result as $thread_id => $thread) {
-        echo "   <li>Thread $thread_id\n";
+        echo "   <li>\n";
+        echo "    Thread $thread_id\n";
         echo "    <ul>\n";
         echo "     <li>thread_ptr: $thread[thread_ptr]</li>\n";
         echo "     <li>LWP: $thread[LWP]</li>\n";
-        echo "     <li><pre>$thread[raw_content]</pre></li>\n";
+        echo "     <li><div class='raw'><pre>$thread[raw_content]</pre></div></li>\n";
         echo "    </ul>\n";
         echo "   </li>\n";
     }
-    echo "  </ul>\n";
+    echo "   </ul>\n";
+    echo "  </div>\n";
 }

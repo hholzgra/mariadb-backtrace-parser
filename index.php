@@ -105,9 +105,57 @@ function gdb_parse($gdbfile) {
                 'thread_ptr'  => $m[2],
                 'LWP'         => $m[3],
                 'raw_content' => '',
+                'functions'   => [],
             ];
         } else if (isset($current_thread)) {
             $current_thread['raw_content'] .= "$line\n";
+
+            // check for call stack frame lines
+            if (preg_match('|^#(\d+)\s(.*)$|', $line, $m)) {
+                $frame = [
+                    'frame' => $m[1],
+                ];
+
+                $payload  = trim($m[2]);
+
+                // frame starts with an address pointer (optional)
+                if (preg_match('|^(\w+) in (.*)|', $payload, $m)){
+                    $frame['addr'] = $m[1];
+                    $payload       = trim($m[2]);
+                }
+
+                if ($payload == '<signal handler called>') {
+                    // special case of a function call
+                    $frame['function'] = '***signal handler called***';
+                } else if (preg_match('|^([\w@\.\?:]+) \((.*)\)(.*)$|', $payload, $m)) {
+                    // a regular function call with optional parameters
+                    $frame['function'] = $m[1];
+                    $frame['params']   = parse_params($m[2]);
+
+                    $rest = trim($m[3]);
+
+                    // function from an external library
+                    if (preg_match('|^from (.*)$|', $rest, $m)) {
+                        $frame['source'] = $m[1];
+                    }
+
+                    // function from known source file
+                    if (preg_match('|^at (.*)$|', $rest, $m)) {
+                        $where = trim($m[1]);
+
+                        // try to shorten absolute paths to server source code
+                        if ($where[0] == '/') {
+                            $where = preg_replace('|^/.*/mysql[^/]+/|',   '.../', $where);
+                            $where = preg_replace('|^/.*/mariadb[^/]+/|', '.../', $where);
+                            $where = preg_replace('|^/.*/build[^/]*/|',   '.../', $where);
+                        }
+
+                        $frame['source'] = $where;
+                    }
+
+                    $current_thread['functions'][$frame['function']] = $frame;
+                }
+            }
         }
     }
 
@@ -133,10 +181,102 @@ function show_result($result) {
         echo "    <ul>\n";
         echo "     <li>thread_ptr: $thread[thread_ptr]</li>\n";
         echo "     <li>LWP: $thread[LWP]</li>\n";
-        echo "     <li><div class='raw'><pre>$thread[raw_content]</pre></div></li>\n";
+        echo "     <li>Functions:\n";
+        echo "      <ul>\n";
+        foreach ($thread['functions'] as $function) {
+            echo "       <li>\n";
+            if (isset($function['source'])) {
+                echo "        <span title='$function[source]'>$function[function]</span>\n";
+            } else {
+                echo "        $function[function]\n";
+            }
+            echo "        <ul>\n";
+            foreach ($function['params'] as $name => $value) {
+                $name  = htmlspecialchars($name, ENT_NOQUOTES);
+                $value = htmlspecialchars($value, ENT_NOQUOTES);
+                echo "         <li>$name: $value</li>\n";
+            }
+            echo "        </ul>\n";
+            echo "       </li>\n";
+        }
+        echo "      </ul>\n";
+        echo "     </li>\n";
         echo "    </ul>\n";
         echo "   </li>\n";
     }
     echo "   </ul></li></ul>\n";
     echo "  </div>\n";
+}
+
+function parse_params($params) {
+    $in_quotes = false;
+    $in_fptr   = false;
+
+    $str = '';
+
+    $results = [];
+
+    // split parameter list by ','
+    // but ignore commas inside of quoted strings or function prototypes inside <> 
+    for($i = 0; $i < strlen($params); $i++) {
+        $c = $params[$i];
+
+        switch ($c) {
+        case '\\':
+            $str .= $c;
+            $str .= $params[++$i];
+            break;
+        case '"':
+            $str .= $c;
+            $in_quotes = !$in_quotes;
+            break;
+        case '<':
+            $str .= $c;
+            if (!$in_quotes) {
+                $in_fptr = true;
+            }
+            break;
+        case '>':
+            $str .= $c;
+            if (!$in_quotes) {
+                $in_fptr = false;
+            }
+            break;
+        case ',':
+            if (!$in_quotes && !$in_fptr) {
+                $results[] = trim($str);
+                $str = '';
+            } else {
+                $str .= $c;
+            }
+            break;
+        default:
+            $str .= $c;
+            break;
+        }
+    }
+
+    // store final parameter
+    if (trim($str) != '') {
+        $results[] = trim($str);
+    }
+
+    // now split up found parameters into name->value pairs
+    $real_results = [];
+    foreach ($results as $result) {
+        unset($value);
+        // split by first '=' only
+        list($name, $value) = explode('=', $result, 2);
+
+        // check if gdb also added extra entry value info and remove it
+        $prefix = "$name@entry=";
+        $prefix_len = strlen($prefix);
+        if (substr($value, 0, $prefix_len) == $prefix) {
+            $value = substr($value, $prefix_len);
+        }
+
+        $real_results[$name] = $value;
+    }
+
+    return $real_results;
 }

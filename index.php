@@ -229,7 +229,7 @@ function show_result($result, $gdbfile)
 function show_result_by_thread_id($result) {
     echo "  <h2>Threads by ID</h2>\n";
     echo "  <div id='by_id'>\n";
-    echo "   <ul><li>Threads by ID<ul>\n";
+    echo "   <ul><li>Threads by ID (".count($result).")<ul>\n";
     foreach($result as $thread_id => $thread) {
         echo "   <li>\n";
         echo "    Thread $thread_id\n";
@@ -278,17 +278,29 @@ function show_result_by_thread_group($result)
     echo "</ul></div>\n";
 }
 
+function _fnc_cnt_cmp($a, $b)
+{
+    $ca = count($a);
+    $cb = count($b);
+
+    if ($ca == $cb) {
+        return 0;
+    }
+    return ($ca > $cb) ? -1 : 1;
+}
+
 function show_result_by_last_funcs($result)
 {
+    // TODO: order by count, descending
     global $threads;
     global $last_funcs;
+
+    uasort($last_funcs, "_fnc_cnt_cmp");
     
     $n=0;
 
     echo "<h2>Threads by last function (".count($last_funcs).")</h2><div id='by_func'><ul>\n";
 
-    echo "<pre>"; var_dump($last_funcs); echo "</pre>";
-    
     foreach ($last_funcs as $func => $members) {
 	echo "<li>\n";
 	echo "<tt>$func</tt> (".count($members).")<br/><ul>";
@@ -302,8 +314,6 @@ function show_result_by_last_funcs($result)
 	}
 	
 	echo "</ul></li>\n";
-	
-	if (++$n > 5) break;
     }
 
     echo "</ul></div>";

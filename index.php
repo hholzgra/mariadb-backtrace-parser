@@ -45,6 +45,7 @@ see also:
       $(function () {
 	  $('#by_id').jstree();
 	  $('#by_group').jstree();
+	  $('#by_func').jstree();
       });
      </script>
 
@@ -84,14 +85,14 @@ function process_upload()
     }
 
     // take uploaded file, or bundled "gdb.log" example if no file was selected
-    $gdbfile = empty($_FILES['gdb']['tmp_name']) ? "./gdb.log" : $_FILES['gdb']['tmp_name'];
+    $gdbfile = empty($_FILES['gdb']['tmp_name']) ? "examples/gdb.log" : $_FILES['gdb']['tmp_name'];
 
     if (!is_readable($gdbfile)) {
 	echo "can't open file '$gdbfile'";
     } else {
 	$result = gdb_parse($gdbfile);
 	if ($result !== false) {
-	    show_result($result);
+	    show_result($result,  empty($_FILES['gdb']['name']) ? "examples/gdb.log" : $_FILES['gdb']['name']);
 	} else {
 	    echo "no parse result :(";
 	}
@@ -100,8 +101,10 @@ function process_upload()
     return true;
 }
 
+// these lists are global as I am lazy
 $threads = [];
 $thread_groups = [];
+$last_funcs = [];
 
 function gdb_parse($gdbfile)
 {
@@ -213,10 +216,14 @@ function gdb_parse($gdbfile)
     return (count($threads) > 0) ? $threads : false;
 }
 
-function show_result($result)
+function show_result($result, $gdbfile)
 {
+    echo "GDB file: $gdbfile<hr/>\n";
     show_result_by_thread_id($result);
+    echo "<hr/>\n";
     show_result_by_thread_group($result);
+    echo "<hr/>\n";
+    show_result_by_last_funcs($result);
 }
 
 function show_result_by_thread_id($result) {
@@ -269,7 +276,37 @@ function show_result_by_thread_group($result)
     }
 
     echo "</ul></div>\n";
+}
 
+function show_result_by_last_funcs($result)
+{
+    global $threads;
+    global $last_funcs;
+    
+    $n=0;
+
+    echo "<h2>Threads by last function (".count($last_funcs).")</h2><div id='by_func'><ul>\n";
+
+    echo "<pre>"; var_dump($last_funcs); echo "</pre>";
+    
+    foreach ($last_funcs as $func => $members) {
+	echo "<li>\n";
+	echo "<tt>$func</tt> (".count($members).")<br/><ul>";
+	
+	foreach ($members as $thread) {
+	    $group = $threads[$thread]['group'];
+	    $type  = $threads[$thread]['type'];
+	    echo "<li>$group: $type ($thread)";
+	    thread_details($thread);
+	    echo "</li>\n";
+	}
+	
+	echo "</ul></li>\n";
+	
+	if (++$n > 5) break;
+    }
+
+    echo "</ul></div>";
     echo "<hr>\n";
 }
 
@@ -296,7 +333,8 @@ function store_thread($current_thread)
 {
     global $threads;
     global $thread_groups;
-
+    global $last_funcs;
+    
     // add thread to threads list
     $threads[$current_thread['thread_id']] = $current_thread;
 
@@ -311,6 +349,12 @@ function store_thread($current_thread)
 
     // add thread to thread group
     $thread_groups[$current_thread['group']][$current_thread['type']][] = $current_thread['thread_id'];
+
+    $last_func = current(array_keys($current_thread['functions']));
+    if (!isset($last_funcs[$last_func])) {
+	$last_funcs[$last_func] = [];    
+    }
+    $last_funcs[$last_func][] = $current_thread['thread_id'];
 }
 
 function parse_params($params) {
